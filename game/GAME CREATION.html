@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Nobles Academy: 21 Days - Secret Routes</title>
+    <style>
+        body, html { height: 100%; margin: 0; background: #000; color: #fdf0f5; font-family: 'Georgia', serif; overflow: hidden; }
+
+        #bg-layer {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-size: cover; background-position: center; background-repeat: no-repeat;
+            z-index: -2; transition: background-image 1.2s ease-in-out;
+        }
+
+        #bg-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(0,0,0,0.3), rgba(30,0,40,0.7));
+            z-index: -1;
+        }
+
+        #selection-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('Ashford Academy.jfif');
+            background-size: cover; background-position: center;
+            z-index: 500; transition: opacity 0.8s ease;
+        }
+
+        .prince-grid { display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
+        .p-card { 
+            width: 140px; padding: 10px; border: 1px solid #ff75a0; border-radius: 8px; 
+            background: rgba(20,0,30,0.9); cursor: pointer; text-align: center; transition: 0.3s;
+            outline: none;
+        }
+        .p-card:hover, .p-card.focused { transform: translateY(-5px); box-shadow: 0 0 15px #ff75a0; border-color: #fff; }
+        .p-card img { width: 100%; height: 180px; object-fit: contain; border-radius: 4px; }
+        .p-card span { display: block; margin-top: 8px; font-size: 0.8rem; color: #ffd1df; }
+
+        .stage { display: flex; justify-content: space-between; align-items: flex-end; height: 75vh; padding: 0 5%; }
+        .sprite {
+            width: 420px; height: 600px;
+            background-size: contain; background-repeat: no-repeat; background-position: bottom;
+            transition: all 0.7s ease-in-out;
+            filter: drop-shadow(0 0 15px rgba(255, 117, 160, 0.4));
+        }
+
+        .left-enter { transform: translateX(-120%); opacity: 0; }
+        .right-enter { transform: translateX(120%); opacity: 0; }
+        .active-npc { transform: translateX(0); opacity: 1; }
+        .active-player { transform: translateX(0); opacity: 1; }
+
+        .ui-panel {
+            position: fixed; bottom: 0; width: 100%;
+            background: rgba(15, 0, 20, 0.95); border-top: 3px solid #ff75a0;
+            padding: 25px; box-sizing: border-box; z-index: 100;
+        }
+        .content-wrap { max-width: 900px; margin: auto; position: relative; }
+        #scene-info { position: absolute; top: -10px; right: 0; color: #ff75a0; font-size: 0.8rem; }
+        #char-name { font-size: 1.6rem; color: #ffb3cc; margin-bottom: 8px; }
+        #dialogue-text { font-size: 1.2rem; min-height: 60px; line-height: 1.5; }
+
+        .choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
+        button {
+            background: rgba(60, 0, 70, 0.6); color: #ffd1df; border: 1px solid #ff75a0;
+            padding: 12px; cursor: pointer; border-radius: 5px; font-family: inherit;
+            outline: none;
+        }
+        button:hover, button.focused { background: #ff75a0; color: #000; box-shadow: 0 0 10px #ff75a0; }
+        
+        #stat-hud { position: fixed; top: 15px; left: 15px; background: rgba(0,0,0,0.7); padding: 5px 15px; border-radius: 15px; font-size: 0.75rem; color: #ffb3cc; z-index: 1000; }
+    </style>
+</head>
+<body>
+
+    <div id="bg-layer"></div>
+    <div id="bg-overlay"></div>
+    <div id="stat-hud">Knight: 0 | Priestess: 0 | Elf: 0</div>
+
+    <div id="selection-screen">
+        <h2 style="color: #ff75a0; text-shadow: 2px 2px 4px #000;">Choose Your Targeted Prince</h2>
+        <div class="prince-grid" id="prince-container">
+            <div class="p-card" data-index="0" onclick="startStory('Brad')"><img src="Brad Fou Field.png"><span>Brad Fou Field</span></div>
+            <div class="p-card" data-index="1" onclick="startStory('Greg')"><img src="Greg Fou Seberg.png"><span>Greg Fou Seberg</span></div>
+            <div class="p-card" data-index="2" onclick="startStory('Chris')"><img src="Chris Fia Archlight.png"><span>Chris Fia Archlight</span></div>
+            <div class="p-card" data-index="3" onclick="startStory('Jilk')"><img src="Jilk Fia Marmoria.png"><span>Jilk Fia Marmoria</span></div>
+            <div class="p-card" data-index="4" onclick="startStory('Julius')"><img src="Julius.Rapha.Holfort.1024.3857733.webp"><span>Julius Holfort</span></div>
+        </div>
+    </div>
+
+    <div class="stage">
+        <div id="npc-sprite" class="sprite left-enter"></div>
+        <div id="player-sprite" class="sprite right-enter"></div>
+    </div>
+
+    <div class="ui-panel">
+        <div class="content-wrap">
+            <span id="scene-info">Phase: Selection</span>
+            <div id="char-name">Academy Entrance</div>
+            <div id="dialogue-text">Select a Prince to begin your 21-day journey.</div>
+            <div class="choice-grid" id="choice-buttons"></div>
+        </div>
+    </div>
+
+    <script>
+        const IMG_KNIGHT = "9gq4vbuqr46sc2q5i8r2va3jur-df262926731349a72529df7de6f68b2d.png";
+        const IMG_PRIESTESS = "a5cc3ae946f35c8b6bf3d93e9d9f2f21.webp";
+        const IMG_PLAYER = "anime-drawing-character-manga-girl-miracle-nikki-432e0600f52d5030c9cf9568c851f85f.png";
+        const IMG_ELF = "anime-elf-female-character-image-anime-7e40c357085a8576c50b18646930e3cb.png";
+        
+        const PRINCE_DATA = {
+            "Brad": "Brad Fou Field.png",
+            "Greg": "Greg Fou Seberg.png",
+            "Chris": "Chris Fia Archlight.png",
+            "Jilk": "Jilk Fia Marmoria.png",
+            "Julius": "Julius.Rapha.Holfort.1024.3857733.webp"
+        };
+
+        const BG_STORY = "Castle courtyard.jpg";
+
+        let currentScene = 0;
+        let stats = { knight: 0, priestess: 0, elf: 0 };
+        let chosenPrince = "";
+        let focusIndex = 0;
+        let inSelection = true;
+
+        // SECRET EVENTS: Logic for individual routes
+        const secretEvents = {
+            "Brad": { text: "Brad stops you by the armor stand. 'Your family's swordsmanship is legendary. Show me your stance.'", choices: [{text: "Assume Stance", pts: {knight: 20}}, {text: "Declines", pts: {knight: -5}}] },
+            "Greg": { text: "Greg is counting academy funds. He looks stressed. 'The numbers don't add up... do you have a moment?'", choices: [{text: "Help Him", pts: {priestess: 20}}, {text: "Offer Coffee", pts: {knight: 10}}] },
+            "Chris": { text: "Chris is playing a flute in the garden. He stops as you approach. 'Music is the only truth in this academy.'", choices: [{text: "Listen Quietly", pts: {elf: 20}}, {text: "Applaud", pts: {knight: 10}}] },
+            "Jilk": { text: "Jilk is adjusting his monocle. 'I’ve been calculating our meeting. It was statistically inevitable.'", choices: [{text: "Agree", pts: {priestess: 15}}, {text: "Laugh it off", pts: {elf: 10}}] },
+            "Julius": { text: "Julius looks out over the balcony. 'The crown is heavy. Sometimes I wish I was just a student.'", choices: [{text: "Comfort Him", pts: {knight: 15}}, {text: "Remind Him of Duty", pts: {priestess: 10}}] }
+        };
+
+        const storyData = [
+            { section: "Arrival", npc: "selected_prince", text: "As you enter the courtyard, your targeted Prince is standing there. He notices your arrival.", 
+                choices: [{text: "Approach Him", pts: {knight: 10}}, {text: "Curtsy Deeply", pts: {priestess: 10}}, {text: "Observe from Afar", pts: {elf: 5}}, {text: "Walk Past", pts: {knight: -5}}] },
+            { section: "The Secret", npc: "selected_prince", isSecret: true }, // Placeholder for secret logic
+            { section: "Rivalry", name: "The Academy Knight", npc: IMG_KNIGHT, text: "The Knight stops you. 'I saw you speaking with the Prince. Be careful of the academy's rumors.'", 
+                choices: [{text: "I'll Be Careful", pts: {knight: 10}}, {text: "Why Do You Care?", pts: {knight: -5}}, {text: "He's Kind", pts: {knight: 5}}, {text: "Ignore Him", pts: {}}] }
+        ];
+
+        function updateFocus() {
+            const selector = inSelection ? '.p-card' : '#choice-buttons button';
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => el.classList.remove('focused'));
+            if (elements[focusIndex]) elements[focusIndex].classList.add('focused');
+        }
+
+        window.addEventListener('keydown', (e) => {
+            const selector = inSelection ? '.p-card' : '#choice-buttons button';
+            const elements = document.querySelectorAll(selector);
+            if (e.key === "ArrowRight") { focusIndex = (focusIndex + 1) % elements.length; updateFocus(); }
+            else if (e.key === "ArrowLeft") { focusIndex = (focusIndex - 1 + elements.length) % elements.length; updateFocus(); }
+            else if (e.key === "Enter" || e.key === " ") { if (elements[focusIndex]) elements[focusIndex].click(); }
+        });
+
+        function startStory(name) {
+            chosenPrince = name;
+            inSelection = false;
+            focusIndex = 0;
+            document.getElementById('selection-screen').style.opacity = "0";
+            document.getElementById('bg-layer').style.backgroundImage = "url('" + BG_STORY + "')";
+            setTimeout(() => { document.getElementById('selection-screen').style.display = 'none'; playScene(0); }, 800);
+        }
+
+        function playScene(index) {
+            const npcEl = document.getElementById('npc-sprite');
+            const playerEl = document.getElementById('player-sprite');
+            const btnWrap = document.getElementById('choice-buttons');
+            focusIndex = 0;
+
+            if (index >= storyData.length) {
+                let winner = Object.keys(stats).reduce((a, b) => stats[a] > stats[b] ? a : b);
+                document.getElementById('char-name').innerText = "End of Prologue";
+                document.getElementById('dialogue-text').innerText = `You completed your path with Prince ${chosenPrince}. Final ally bond: ${winner.toUpperCase()}.`;
+                btnWrap.innerHTML = "<button class='focused' onclick='location.reload()'>Restart Adventure</button>";
+                return;
+            }
+
+            let scene = storyData[index];
+            npcEl.classList.remove('active-npc');
+            document.getElementById('stat-hud').innerText = `Knight: ${stats.knight} | Priestess: ${stats.priestess} | Elf: ${stats.elf}`;
+
+            // Inject Secret Content
+            if (scene.isSecret) {
+                scene = { ...scene, ...secretEvents[chosenPrince], name: chosenPrince, npc: "selected_prince" };
+            }
+
+            setTimeout(() => {
+                document.getElementById('scene-info').innerText = `DAY ${index + 1} - ${scene.section}`;
+                if (scene.npc === "selected_prince") {
+                    document.getElementById('char-name').innerText = chosenPrince;
+                    npcEl.style.backgroundImage = "url('" + PRINCE_DATA[chosenPrince] + "')";
+                } else {
+                    document.getElementById('char-name').innerText = scene.name;
+                    npcEl.style.backgroundImage = "url('" + scene.npc + "')";
+                }
+                
+                npcEl.classList.add('active-npc');
+                playerEl.style.backgroundImage = "url('" + IMG_PLAYER + "')";
+                playerEl.classList.add('active-player');
+                document.getElementById('dialogue-text').innerText = scene.text;
+
+                btnWrap.innerHTML = '';
+                scene.choices.forEach((choice) => {
+                    const btn = document.createElement('button');
+                    btn.innerText = choice.text;
+                    btn.onclick = () => { 
+                        if(choice.pts) { for(let char in choice.pts) stats[char] += choice.pts[char]; }
+                        currentScene++; playScene(currentScene); 
+                    };
+                    btnWrap.appendChild(btn);
+                });
+                updateFocus();
+            }, 400);
+        }
+
+        window.onload = () => { updateFocus(); };
+    </script>
+</body>
+</html>
